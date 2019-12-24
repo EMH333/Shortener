@@ -22,6 +22,7 @@ const minLength = 3
 const maxLength = 20
 
 //the shortcuts that can not be used
+//Note that this doesn't require the .html because dots aren't allowed
 var blacklist = [...]string{
 	"insert",
 	"index",
@@ -31,13 +32,12 @@ var blacklist = [...]string{
 func main() {
 	// Create a boltdb (bbolt fork) database
 	db, err := bolt.Open("links.db", 0600, nil)
+	defer db.Close()
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	linkStore = stow.NewJSONStore(db, []byte("links"))
-
-	//linkStore.Put("hello", Link{Name: "Dustin"})
 
 	http.HandleFunc("/insert", insertHandler)
 	http.HandleFunc("/", getHandler)
@@ -46,10 +46,13 @@ func main() {
 }
 
 func getHandler(w http.ResponseWriter, r *http.Request) {
-	//fmt.Fprintf(w, "Hi there, I love %s!", r.URL.Path[1:])
+	//serve home page if requested
 	if r.URL.Path == "/" || r.URL.Path == "/index.html" {
 		http.ServeFile(w, r, "./static/index.html")
+		return
 	}
+
+	//else try to serve the link
 	split := strings.Split(r.URL.Path, "/")
 	if len(split) <= 1 {
 		fmt.Fprint(w, "Error here :(")
@@ -68,7 +71,6 @@ func getHandler(w http.ResponseWriter, r *http.Request) {
 
 //Handle insertion
 func insertHandler(w http.ResponseWriter, r *http.Request) {
-	//NOTE: Eventually this will handle serving the homepage file
 	if r.Method != http.MethodPost {
 		fmt.Fprint(w, "Can't do that. sorry")
 		return
@@ -76,7 +78,7 @@ func insertHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Call ParseForm() to parse the raw query and update r.PostForm and r.Form.
 	if err := r.ParseForm(); err != nil {
-		fmt.Printf("ParseForm() err: %v", err)
+		fmt.Printf("ParseForm() err: %v", err) //NOTE remove for production
 		fmt.Fprint(w, "Error Parsing Form")
 		return
 	}
@@ -114,6 +116,8 @@ func insertHandler(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprint(w, "Some sort of error in your url. Make sure you are using https!")
 		return
 	}
+
+	//TODO add forever links that permananetly point to a url
 
 	link := Link{Name: name, URL: iurl, Expire: time.Now().Add(expireTime)}
 
