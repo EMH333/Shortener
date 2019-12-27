@@ -6,14 +6,19 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
     <title>Link Shortener</title>
+    <script src="./script.js"></script>
+    <link rel="stylesheet" href="./style.css">
 </head>
 
 <body>
-    <form action="/insert" method="post">
-        <input type="text" name="name" id="name" placeholder="Name">
-        <input type="text" name="url" id="url" placeholder="URL">
-        <button type="submit">Submit</button>
-    </form>
+    <div class="form center">
+        <form action="/insert" method="post">
+            <input type="text" name="name" id="name" placeholder="Name">
+            <input type="text" name="url" id="url" placeholder="URL">
+            <button type="submit">Submit</button>
+        </form>
+    </div>
+    <div class="circle">&nbsp;</div>
 </body>
 
 </html>
