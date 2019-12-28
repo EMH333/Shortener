@@ -60,7 +60,7 @@ body {
   transition: 0.5s ease-in-out;
 }
 
-.circle:hover:before {
+.circleBig:before {
   transform: scale(7);
   background-color: gray;
 }
