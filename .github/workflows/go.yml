@@ -25,4 +25,12 @@ jobs:
         fi
 
     - name: Build
-      run: go build -v .
+      run: go build -v . -o build/Shortener
+      
+    - name: Upload artifact
+      uses: actions/upload-artifact@v1.0.0
+      with:
+        # Artifact name
+        name: Binary
+        # Directory containing files to upload
+        path: build
