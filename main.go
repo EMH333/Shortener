@@ -20,6 +20,7 @@ var checkGex *regexp.Regexp = regexp.MustCompile("[^\\w]")
 
 const minLength = 3
 const maxLength = 20
+const maxURLLength = 2000
 
 //the shortcuts that can not be used
 //Note that this doesn't require the .html because dots aren't allowed
@@ -112,7 +113,7 @@ func insertHandler(w http.ResponseWriter, r *http.Request) {
 
 	//check if url is valid
 	u, err := url.Parse(iurl)
-	if err != nil || u.Scheme != "https" || u.Host == "" {
+	if err != nil || u.Scheme != "https" || u.Host == "" || len(iurl) > maxURLLength {
 		fmt.Fprint(w, "Some sort of error in your url. Make sure you are using https!")
 		return
 	}
