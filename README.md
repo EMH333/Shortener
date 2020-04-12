@@ -1,4 +1,5 @@
 # Link Shortener
+![Build](https://github.com/EMH333/Shortener/workflows/Go/badge.svg)
 This is a simple proof of concept for a temporary link shortener. More to be added here later
 
 ### To Use
