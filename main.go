@@ -116,7 +116,7 @@ func insertHandler(w http.ResponseWriter, r *http.Request) {
 	//Check that link does not exist and is safe to reasignn
 	var t Link
 	linkStore.Get(name, &t)
-	if !t.Expire.IsZero() || !t.Expire.Add(expireTime).Before(time.Now()) || belongsToBlacklist(t.Name) {
+	if (!t.Expire.IsZero() && !t.Expire.Add(expireTime).Before(time.Now())) || belongsToBlacklist(t.Name) {
 		fmt.Fprint(w, "Sorry, the name is taken already, come back in a bit")
 		return
 	}
