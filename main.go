@@ -53,6 +53,16 @@ func getHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	//serve static files as well
+	if r.URL.Path == "/script.js" {
+		http.ServeFile(w, r, "./static/script.js")
+		return
+	}
+	if r.URL.Path == "/style.css" {
+		http.ServeFile(w, r, "./static/style.css")
+		return
+	}
+
 	//else try to serve the link
 	split := strings.Split(r.URL.Path, "/")
 	if len(split) <= 1 {
