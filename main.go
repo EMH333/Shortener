@@ -136,7 +136,7 @@ func insertHandler(w http.ResponseWriter, r *http.Request) {
 	link := Link{Name: name, URL: iurl, Expire: time.Now().Add(expireTime)}
 
 	linkStore.Put(name, link)
-	rtemplate.Execute(w, "Link created")
+	rtemplate.Execute(w, "Link created!")
 }
 
 //Link This is the link we will use

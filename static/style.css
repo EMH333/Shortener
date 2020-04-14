@@ -37,3 +37,10 @@ body {
   	
 	margin: auto;
 }
+
+.results{
+  background-color: rgb(202, 202, 202);
+}
+#result{
+  padding-bottom: 2em;
+}
