@@ -1,4 +1,5 @@
 window.addEventListener("load", function () {
+    var background = this.document.getElementById("background");
     var size = {
         width: window.innerWidth || document.body.clientWidth,
         height: window.innerHeight || document.body.clientHeight
@@ -14,7 +15,7 @@ window.addEventListener("load", function () {
             el.style.left = width + "px";
             el.style.backgroundColor = getRandomColor() + "CF";//not we are decresing opacity slightly
             el.className = "brick"
-            document.body.appendChild(el);
+            background.appendChild(el);
             console.log(height)
         }
     }

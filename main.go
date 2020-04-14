@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"html/template"
 	"log"
 	"net/http"
 	"net/url"
@@ -21,6 +22,8 @@ var checkGex *regexp.Regexp = regexp.MustCompile("[^\\w]")
 const minLength = 3
 const maxLength = 20
 const maxURLLength = 2000
+
+var rtemplate = template.Must(template.ParseFiles("./static/result.html"))
 
 //the shortcuts that can not be used
 //Note that this doesn't require the .html because dots aren't allowed
@@ -90,41 +93,41 @@ func insertHandler(w http.ResponseWriter, r *http.Request) {
 	// Call ParseForm() to parse the raw query and update r.PostForm and r.Form.
 	if err := r.ParseForm(); err != nil {
 		fmt.Printf("ParseForm() err: %v", err) //NOTE remove for production
-		fmt.Fprint(w, "Error Parsing Form")
+		rtemplate.Execute(w, "Error Parsing Form")
 		return
 	}
 
 	name := r.FormValue("name")
 	iurl := r.FormValue("url")
 	if name == "" || iurl == "" {
-		fmt.Fprint(w, "You need stuff in the form dumbo")
+		rtemplate.Execute(w, "You need stuff in the form dumbo")
 		return
 	}
 
 	//check if name is long enough and short enough
 	if len(name) > maxLength || len(name) < minLength {
-		fmt.Fprintf(w, "The shortcut has to be between %d and %d characters long", minLength, maxLength)
+		rtemplate.Execute(w, fmt.Sprintf("The shortcut has to be between %d and %d characters long", minLength, maxLength))
 		return
 	}
 
 	//check if name does not contain any invalid chars
 	if checkGex.MatchString(name) {
-		fmt.Fprint(w, "You can only include numbers and letters in the shortcut")
+		rtemplate.Execute(w, "You can only include numbers and letters in the shortcut")
 		return
 	}
 
-	//Check that link does not exist and is safe to reasignn
+	//Check that link does not exist and is safe to reasign. Note this means double the time of exipration has passed
 	var t Link
 	linkStore.Get(name, &t)
 	if (!t.Expire.IsZero() && !t.Expire.Add(expireTime).Before(time.Now())) || belongsToBlacklist(t.Name) {
-		fmt.Fprint(w, "Sorry, the name is taken already, come back in a bit")
+		rtemplate.Execute(w, "Sorry, the name is taken already, come back in a bit")
 		return
 	}
 
 	//check if url is valid
 	u, err := url.Parse(iurl)
 	if err != nil || u.Scheme != "https" || u.Host == "" || len(iurl) > maxURLLength {
-		fmt.Fprint(w, "Some sort of error in your url. Make sure you are using https!")
+		rtemplate.Execute(w, "Some sort of error in your url. Make sure you are using https!")
 		return
 	}
 
@@ -133,7 +136,7 @@ func insertHandler(w http.ResponseWriter, r *http.Request) {
 	link := Link{Name: name, URL: iurl, Expire: time.Now().Add(expireTime)}
 
 	linkStore.Put(name, link)
-	fmt.Fprint(w, "OK")
+	rtemplate.Execute(w, "Link created")
 }
 
 //Link This is the link we will use
