@@ -31,6 +31,8 @@ var blacklist = [...]string{
 	"insert",
 	"index",
 	"about",
+	"stats",
+	"analytics",
 }
 
 func main() {
@@ -42,6 +44,10 @@ func main() {
 	}
 
 	linkStore = stow.NewJSONStore(db, []byte("links"))
+
+	InitAnalytics()
+	defer CloseAnalytics()
+	http.HandleFunc("/stats/", StatsHandler)
 
 	http.HandleFunc("/insert", insertHandler)
 	http.HandleFunc("/", getHandler)
@@ -87,6 +93,10 @@ func getHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Link not found", http.StatusNotFound)
 		return
 	}
+
+	//log analyitics
+	go LogURLHit(&link)
+
 	http.Redirect(w, r, link.URL, http.StatusFound)
 }
 
@@ -142,6 +152,9 @@ func insertHandler(w http.ResponseWriter, r *http.Request) {
 
 	link := Link{Name: name, URL: iurl, Expire: time.Now().Add(expireTime)}
 
+	//analytics
+	LogURLInsert(&link)
+
 	linkStore.Put(name, link)
 	rtemplate.Execute(w, "Link created!")
 }
@@ -160,4 +173,11 @@ func belongsToBlacklist(lookup string) bool {
 		}
 	}
 	return false
+}
+
+//GetLinkFromName grabs the link and coresponding information
+func GetLinkFromName(name string) Link {
+	var link Link
+	linkStore.Get(name, &link)
+	return link
 }
