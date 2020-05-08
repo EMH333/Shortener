@@ -26,6 +26,9 @@ jobs:
 
     - name: Build
       run: go build -v -o build/Shortner .
+     
+    - name: Test
+      run: timeout 15s ./build/Shortner
       
     - name: Upload artifact
       uses: actions/upload-artifact@v1.0.0
