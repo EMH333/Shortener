@@ -174,10 +174,3 @@ func belongsToBlacklist(lookup string) bool {
 	}
 	return false
 }
-
-//GetLinkFromName grabs the link and coresponding information
-func GetLinkFromName(name string) Link {
-	var link Link
-	linkStore.Get(name, &link)
-	return link
-}
