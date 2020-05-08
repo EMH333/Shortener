@@ -73,8 +73,15 @@ func getHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var name string = split[1]
+
+	if checkGex.MatchString(name) {
+		http.Error(w, "Invalid link name", http.StatusBadRequest)
+		return
+	}
+
 	var link Link
-	linkStore.Get(split[1], &link)
+	linkStore.Get(name, &link)
 	//insure that the link actually exists in the database and that it hasn't expired
 	if link.Expire.IsZero() || link.Expire.Before(time.Now()) {
 		http.Error(w, "Link not found", http.StatusNotFound)
