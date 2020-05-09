@@ -1,0 +1,3 @@
+{
+    "command":"go build main.go analytics.go && ./main"
+}
