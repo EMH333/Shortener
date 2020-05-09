@@ -18,8 +18,8 @@ var history = []byte("history")
 var hits = []byte("hits")
 
 //InitAnalytics initalizes analyitics database and creates buckets as needed
-func InitAnalytics() {
-	db, err := bolt.Open("analytics.db", 0600, nil)
+func InitAnalytics(dbLoc string) {
+	db, err := bolt.Open(dbLoc, 0600, nil)
 	aDB = db
 	if err != nil {
 		log.Fatal(err)
@@ -41,7 +41,7 @@ func InitAnalytics() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Println("Initalized Analytics")
+	log.Println("Initalized Analytics")
 }
 
 //CloseAnalytics closes stats database
@@ -126,6 +126,7 @@ func GetMostRecentDetailsFromName(name string) (Link, time.Time) {
 				URL:    string(bytes.Split(v, []byte("#"))[1]),
 			}
 			creationTime, _ = time.Parse(time.RFC3339, string(bytes.Split(v, []byte("#"))[0]))
+			return nil //if we find one,return the first instance of it
 		}
 		return nil
 	})

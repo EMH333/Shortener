@@ -45,7 +45,7 @@ func main() {
 
 	linkStore = stow.NewJSONStore(db, []byte("links"))
 
-	InitAnalytics()
+	InitAnalytics("analytics.db")
 	defer CloseAnalytics()
 	http.HandleFunc("/stats/", StatsHandler)
 
