@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"html/template"
 	"log"
@@ -23,6 +24,8 @@ const minLength = 3
 const maxLength = 20
 const maxURLLength = 2000
 
+var permanentTime, _ = time.Parse(time.RFC3339, "2001-01-01T12:34:56Z07:00")
+
 var rtemplate = template.Must(template.ParseFiles("./static/result.html"))
 
 //the shortcuts that can not be used
@@ -33,6 +36,11 @@ var blacklist = [...]string{
 	"about",
 	"stats",
 	"analytics",
+	"api",
+	"personal",
+	"ethan",
+	"hampton",
+	"permanent",
 }
 
 func main() {
@@ -89,7 +97,8 @@ func getHandler(w http.ResponseWriter, r *http.Request) {
 	var link Link
 	linkStore.Get(name, &link)
 	//insure that the link actually exists in the database and that it hasn't expired
-	if link.Expire.IsZero() || link.Expire.Before(time.Now()) {
+	//also that it isn't a permanent link
+	if link.Expire.IsZero() || (link.Expire.Before(time.Now()) && !link.Expire.Equal(permanentTime)) {
 		http.Error(w, "Link not found", http.StatusNotFound)
 		return
 	}
@@ -121,42 +130,51 @@ func insertHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	link, err := createLink(name, iurl, false)
+	if err != nil {
+		rtemplate.Execute(w, err.Error())
+		return
+	}
+	//analytics
+	LogURLInsert(link)
+
+	linkStore.Put(name, *link)
+	rtemplate.Execute(w, "Link created!")
+}
+
+func createLink(name string, iurl string, permanent bool) (*Link, error) {
 	//check if name is long enough and short enough
 	if len(name) > maxLength || len(name) < minLength {
-		rtemplate.Execute(w, fmt.Sprintf("The shortcut has to be between %d and %d characters long", minLength, maxLength))
-		return
+		return nil, fmt.Errorf("The shortcut has to be between %d and %d characters long", minLength, maxLength)
 	}
 
 	//check if name does not contain any invalid chars
 	if checkGex.MatchString(name) {
-		rtemplate.Execute(w, "You can only include numbers and letters in the shortcut")
-		return
+		return nil, errors.New("You can only include numbers and letters in the shortcut")
 	}
 
-	//Check that link does not exist and is safe to reasign. Note this means double the time of exipration has passed
-	var t Link
-	linkStore.Get(name, &t)
-	if (!t.Expire.IsZero() && !t.Expire.Add(expireTime).Before(time.Now())) || belongsToBlacklist(t.Name) {
-		rtemplate.Execute(w, "Sorry, the name is taken already, come back in a bit")
-		return
+	if !permanent {
+		//Check that link does not exist and is safe to reasign. Note this means double the time of exipration has passed
+		var t Link
+		linkStore.Get(name, &t)
+		if (!t.Expire.IsZero() && !t.Expire.Add(expireTime).Before(time.Now())) || belongsToBlacklist(t.Name) {
+			return nil, errors.New("Sorry, the name is taken already, come back in a bit")
+		}
 	}
 
 	//check if url is valid
 	u, err := url.Parse(iurl)
 	if err != nil || u.Scheme != "https" || u.Host == "" || len(iurl) > maxURLLength {
-		rtemplate.Execute(w, "Some sort of error in your url. Make sure you are using https!")
-		return
+		return nil, errors.New("Some sort of error in your url. Make sure you are using https! ")
 	}
 
 	//TODO add forever links that permananetly point to a url
 
 	link := Link{Name: name, URL: iurl, Expire: time.Now().Add(expireTime)}
-
-	//analytics
-	LogURLInsert(&link)
-
-	linkStore.Put(name, link)
-	rtemplate.Execute(w, "Link created!")
+	if permanent {
+		link.Expire = permanentTime
+	}
+	return &link, nil
 }
 
 //Link This is the link we will use
