@@ -11,6 +11,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/didip/tollbooth"
+	"github.com/didip/tollbooth/limiter"
 	bolt "go.etcd.io/bbolt"
 	"gopkg.in/djherbis/stow.v3"
 )
@@ -41,6 +43,7 @@ var blacklist = [...]string{
 	"ethan",
 	"hampton",
 	"permanent",
+	"frontpage",
 }
 
 func main() {
@@ -57,7 +60,8 @@ func main() {
 	defer CloseAnalytics()
 	http.HandleFunc("/stats/", StatsHandler)
 
-	http.HandleFunc("/insert", insertHandler)
+	http.Handle("/insert", tollbooth.LimitFuncHandler(
+		tollbooth.NewLimiter(0.1, &limiter.ExpirableOptions{DefaultExpirationTTL: time.Hour}), insertHandler))
 	http.HandleFunc("/", getHandler)
 	log.Fatal(http.ListenAndServe(":8080", nil))
 
