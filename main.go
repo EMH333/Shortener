@@ -211,7 +211,6 @@ func createLink(name string, iurl string, isAdmin bool) (*Link, error) {
 		} else {
 			link.Expire = permanentTime
 		}
-		log.Printf("Set expire to %s", link.Expire)
 	}
 	return &link, nil
 }
