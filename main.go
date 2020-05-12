@@ -1,12 +1,14 @@
 package main
 
 import (
+	"bufio"
 	"errors"
 	"fmt"
 	"html/template"
 	"log"
 	"net/http"
 	"net/url"
+	"os"
 	"regexp"
 	"strings"
 	"time"
@@ -26,12 +28,15 @@ const minLength = 3
 const maxLength = 20
 const maxURLLength = 2000
 
-var permanentTime, _ = time.Parse(time.RFC3339, "2001-01-01T12:34:56Z07:00")
+var permanentTime, _ = time.Parse(time.RFC3339, "2001-01-01T01:23:45Z")
+var adminKey string
 
 //if this is the url entered for a name w/ a valid permenant key then that URL will be removed from service
 const removeKey = "https://remove-from-db.ethan"
+const adminKeyPath = "./admin.key"
 
-var rtemplate = template.Must(template.ParseFiles("./static/result.html"))
+var normalTemplate = template.Must(template.ParseFiles("./static/result.html"))
+var apiTemplate = template.Must(template.ParseFiles("./static/api.response"))
 
 //the shortcuts that can not be used
 //Note that this doesn't require the .html because dots aren't allowed
@@ -59,12 +64,16 @@ func main() {
 
 	linkStore = stow.NewJSONStore(db, []byte("links"))
 
+	adminKey = getAdminKey(adminKeyPath)
+
 	InitAnalytics("analytics.db")
 	defer CloseAnalytics()
 	http.HandleFunc("/stats/", StatsHandler)
 
-	http.Handle("/insert", tollbooth.LimitFuncHandler(
-		tollbooth.NewLimiter(0.1, &limiter.ExpirableOptions{DefaultExpirationTTL: time.Hour}), insertHandler))
+	limitedInsertHandler := tollbooth.LimitFuncHandler(
+		tollbooth.NewLimiter(0.1, &limiter.ExpirableOptions{DefaultExpirationTTL: time.Hour}), insertHandler)
+	http.Handle("/insert", limitedInsertHandler)
+	http.Handle("/api", limitedInsertHandler)
 	http.HandleFunc("/", getHandler)
 	log.Fatal(http.ListenAndServe(":8080", nil))
 
@@ -118,6 +127,11 @@ func getHandler(w http.ResponseWriter, r *http.Request) {
 
 //Handle insertion
 func insertHandler(w http.ResponseWriter, r *http.Request) {
+	rtemplate := normalTemplate
+	if r.URL.Path == "/api" {
+		rtemplate = apiTemplate
+	}
+
 	if r.Method != http.MethodPost {
 		fmt.Fprint(w, "Can't do that. sorry")
 		return
@@ -127,6 +141,7 @@ func insertHandler(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseForm(); err != nil {
 		//fmt.Printf("ParseForm() err: %v", err)
 		rtemplate.Execute(w, "Error Parsing Form")
+		w.WriteHeader(400)
 		return
 	}
 
@@ -134,10 +149,20 @@ func insertHandler(w http.ResponseWriter, r *http.Request) {
 	iurl := r.FormValue("url")
 	if name == "" || iurl == "" {
 		rtemplate.Execute(w, "You need stuff in the form dumbo")
+		w.WriteHeader(400)
 		return
 	}
 
-	link, err := createLink(name, iurl, false)
+	key := r.FormValue("adminKey")
+	isAdmin := false
+	//only if both values arn't nothing then we compare them and check
+	if key != "" && adminKey != "" {
+		if key == adminKey {
+			isAdmin = true
+		}
+	}
+
+	link, err := createLink(name, iurl, isAdmin)
 	if err != nil {
 		rtemplate.Execute(w, err.Error())
 		return
@@ -146,10 +171,14 @@ func insertHandler(w http.ResponseWriter, r *http.Request) {
 	LogURLInsert(link)
 
 	linkStore.Put(name, *link)
-	rtemplate.Execute(w, "Link created!")
+	successMessage := "Link created!"
+	if isAdmin {
+		successMessage = "Link created as admin"
+	}
+	rtemplate.Execute(w, successMessage)
 }
 
-func createLink(name string, iurl string, permanent bool) (*Link, error) {
+func createLink(name string, iurl string, isAdmin bool) (*Link, error) {
 	//check if name is long enough and short enough
 	if len(name) > maxLength || len(name) < minLength {
 		return nil, fmt.Errorf("The shortcut has to be between %d and %d characters long", minLength, maxLength)
@@ -160,7 +189,7 @@ func createLink(name string, iurl string, permanent bool) (*Link, error) {
 		return nil, errors.New("You can only include numbers and letters in the shortcut")
 	}
 
-	if !permanent {
+	if !isAdmin {
 		//Check that link does not exist and is safe to reasign. Note this means double the time of exipration has passed
 		var t Link
 		linkStore.Get(name, &t)
@@ -176,14 +205,35 @@ func createLink(name string, iurl string, permanent bool) (*Link, error) {
 	}
 
 	link := Link{Name: name, URL: iurl, Expire: time.Now().Add(expireTime)}
-	if permanent {
+	if isAdmin {
 		if iurl == removeKey {
 			link.Expire = time.Now()
 		} else {
 			link.Expire = permanentTime
 		}
+		log.Printf("Set expire to %s", link.Expire)
 	}
 	return &link, nil
+}
+
+func getAdminKey(keyPath string) string {
+	file, err := os.Open(keyPath)
+	if err == nil {
+		//log.Println(err)
+		scanner := bufio.NewScanner(file)
+		if scanner.Scan() {
+			log.Println("Found admin key")
+			return scanner.Text()
+		}
+
+		if err := scanner.Err(); err != nil {
+			log.Fatal(err)
+		}
+	}
+	defer file.Close()
+
+	log.Println("Some error with the admin key, it is not possible to create forever links or delete links")
+	return "" //a empty string represents no admin account allowed
 }
 
 //Link This is the link we will use
