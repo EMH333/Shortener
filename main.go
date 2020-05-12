@@ -28,6 +28,9 @@ const maxURLLength = 2000
 
 var permanentTime, _ = time.Parse(time.RFC3339, "2001-01-01T12:34:56Z07:00")
 
+//if this is the url entered for a name w/ a valid permenant key then that URL will be removed from service
+const removeKey = "https://remove-from-db.ethan"
+
 var rtemplate = template.Must(template.ParseFiles("./static/result.html"))
 
 //the shortcuts that can not be used
@@ -122,7 +125,7 @@ func insertHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Call ParseForm() to parse the raw query and update r.PostForm and r.Form.
 	if err := r.ParseForm(); err != nil {
-		fmt.Printf("ParseForm() err: %v", err) //NOTE remove for production
+		//fmt.Printf("ParseForm() err: %v", err)
 		rtemplate.Execute(w, "Error Parsing Form")
 		return
 	}
@@ -172,11 +175,13 @@ func createLink(name string, iurl string, permanent bool) (*Link, error) {
 		return nil, errors.New("Some sort of error in your url. Make sure you are using https! ")
 	}
 
-	//TODO add forever links that permananetly point to a url
-
 	link := Link{Name: name, URL: iurl, Expire: time.Now().Add(expireTime)}
 	if permanent {
-		link.Expire = permanentTime
+		if iurl == removeKey {
+			link.Expire = time.Now()
+		} else {
+			link.Expire = permanentTime
+		}
 	}
 	return &link, nil
 }
